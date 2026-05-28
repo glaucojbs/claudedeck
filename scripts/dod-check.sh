@@ -26,10 +26,27 @@ if [[ ! -f "$PROPOSTA" ]]; then
   exit 1
 fi
 
+# ── Carregar constantes de política (fonte única de verdade) ───────────────────
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+POLICY_CONFIG="$SCRIPT_DIR/../.agent/policy-config.json"
+
+if [[ -f "$POLICY_CONFIG" ]] && command -v jq &>/dev/null; then
+  LIMITE_AUTONOMO=$(jq '.autonomous_limit' "$POLICY_CONFIG")
+  MAX_DESCONTO=$(jq '.max_discount_pct' "$POLICY_CONFIG")
+  POLICY_VERSION=$(jq -r '.version' "$POLICY_CONFIG")
+else
+  # Fallback para valores padrão se jq ou policy-config.json não disponíveis
+  LIMITE_AUTONOMO=150000
+  MAX_DESCONTO=10
+  POLICY_VERSION="(fallback)"
+fi
+
 echo ""
 echo "═══════════════════════════════════════════════════════"
 echo "  DoD Check — Apex Consultoria"
 echo "  Arquivo: $PROPOSTA"
+echo "  Política: v${POLICY_VERSION} | Limite autônomo: R\$ ${LIMITE_AUTONOMO}"
 echo "  Data:    $(date '+%Y-%m-%d %H:%M:%S')"
 echo "═══════════════════════════════════════════════════════"
 echo ""
@@ -40,7 +57,6 @@ CONTENT=$(cat "$PROPOSTA")
 
 echo "[ BLOCO 1 ] Seções obrigatórias"
 
-# Usa arrays paralelos para evitar problema de chaves com espaço/ponto em declare -A
 NOMES=("1. Contexto" "2. Escopo" "3. Entregáveis" "4. Metodologia" "5. Prazo" "6. Investimento" "7. Premissas" "8. Próximos Passos")
 PADROES=("Contexto" "Escopo" "[Ee]ntreg" "Metodologia" "Prazo" "Investimento" "Premissas" "[Pp]r[oó]ximos")
 
@@ -59,11 +75,9 @@ done
 echo ""
 echo "[ BLOCO 2 ] Placeholders proibidos"
 
-# Usa word boundary (\b) ou contexto para evitar falsos positivos com palavras portuguesas
-# Ex: "TODO" standalone (não "todos", "todavia"), "[inserir]", "???" etc.
 ALL_CLEAN=true
 
-# TODO como palavra isolada (maiúsculo) — não captura "todos", "toda", "todavia"
+# TODO como palavra isolada em maiúsculo — não captura "todos", "toda"
 if echo "$CONTENT" | grep -qE '\bTODO\b'; then
   check_fail "Placeholder encontrado: TODO (palavra isolada)"
   ALL_CLEAN=false
@@ -85,7 +99,7 @@ for P in '???' 'TBD'; do
   fi
 done
 
-# XX como valor numérico vago (ex: "R$ XX.000" ou "XX dias")
+# XX como valor numérico vago
 if echo "$CONTENT" | grep -qE '\bXX\b'; then
   check_fail "Placeholder encontrado: XX (valor vago)"
   ALL_CLEAN=false
@@ -123,22 +137,20 @@ fi
 # ── BLOCO 5: Valores de Investimento — apenas na seção Investimento ────────────
 
 echo ""
-echo "[ BLOCO 5 ] Faixas de investimento"
+echo "[ BLOCO 5 ] Faixas de investimento (limite autônomo: R\$ ${LIMITE_AUTONOMO})"
 
-# Extrai somente a seção de Investimento para verificar valores
-SECAO_INVESTIMENTO=$(echo "$CONTENT" | awk '/^#+ .*[Ii]nvestimento/,/^#+ /' | grep -v "^#" || true)
+# Extrai linhas APÓS o heading de Investimento até o próximo heading (ou fim do arquivo)
+SECAO_INVESTIMENTO=$(echo "$CONTENT" | awk '/^#+ .*[Ii]nvestimento/{found=1; next} found && /^#+ /{found=0} found{print}' || true)
 
-LIMITE_AUTONOMO=150000
 VIOLACAO=false
 
 if [[ -n "$SECAO_INVESTIMENTO" ]]; then
   while IFS= read -r V; do
     [[ -z "$V" ]] && continue
-    # Remove pontos de milhar para comparar numericamente
     V_NUM=$(echo "$V" | tr -d '.')
     if (( V_NUM > LIMITE_AUTONOMO )); then
       if ! echo "$CONTENT" | grep -q "\[APROVAÇÃO NECESSÁRIA"; then
-        check_fail "Valor R$ $(printf '%d' "$V_NUM" | sed ':a;s/\B[0-9]\{3\}\>/.&/;ta') na seção Investimento excede R$ 150.000 sem flag de aprovação"
+        check_fail "Valor R\$ ${V} na seção Investimento excede o limite autônomo de R\$ ${LIMITE_AUTONOMO} sem flag de aprovação"
         VIOLACAO=true
       fi
     fi

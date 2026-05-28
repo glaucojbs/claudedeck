@@ -1,0 +1,15 @@
+[
+  {
+    "id": "cliente-exemplo-proposta-v1",
+    "cliente": "Cliente Exemplo Ltda",
+    "tipo": "Implementação",
+    "arquivo": "output/propostas/cliente-exemplo-proposta-v1.md",
+    "gerado_em": "2026-05-28",
+    "skill_usada": "gerar-proposta/1.0.0",
+    "dod_passou": true,
+    "dod_verificacoes": 17,
+    "flags_aprovacao": 0,
+    "status": "RASCUNHO",
+    "revisao_humana": null
+  }
+]

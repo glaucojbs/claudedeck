@@ -1,0 +1,25 @@
+{
+  "version": "1.2",
+  "effective_date": "2026-01-01",
+  "autonomous_limit": 150000,
+  "max_discount_pct": 10,
+  "sla": {
+    "critical_response_h": 2,
+    "critical_resolution_business_h": 8,
+    "high_response_h": 4,
+    "high_resolution_business_days": 2,
+    "medium_response_business_days": 1,
+    "medium_resolution_business_days": 5,
+    "low_response_business_days": 2,
+    "low_resolution_business_days": 15
+  },
+  "ranges": {
+    "diagnostico": { "min": 5000, "max": 50000 },
+    "implementacao": { "min": 20000, "max": 150000 },
+    "sustentacao_mensal": { "min": 3000, "max": 8000 }
+  },
+  "payment_advance_discount_max_pct": 5,
+  "long_project_discount_max_pct": 8,
+  "recurring_client_discount_max_pct": 10,
+  "proposal_validity_days": 30
+}

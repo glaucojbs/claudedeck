@@ -2,6 +2,11 @@
 
 Versão: 1.2 | Vigência: 2026-01-01 | Aprovado por: Diretoria Comercial
 
+> **Fonte de verdade para validação automática:** `.agent/policy-config.json`
+> Os valores numéricos abaixo (faixas, limites, SLAs) são lidos de `policy-config.json`
+> pelo `scripts/dod-check.sh`. Ao alterar qualquer valor neste documento, atualize
+> o JSON correspondente para manter a validação sincronizada.
+
 ---
 
 ## Faixas de Investimento por Tipo de Engajamento
