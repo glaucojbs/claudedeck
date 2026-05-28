@@ -85,17 +85,22 @@ O script produz um relatório com lista de verificações passadas e falhas, com
 ```
 Pergunta de Governança          Onde a resposta está
 ─────────────────────────────── ────────────────────────────────────────────
-Esta ação é permitida?          .agent/tools.md         (superfície de execução)
-                                .agent/rules/proposta.md (guardrails de negócio)
-                                .agent/skills/*/SKILL.md (fluxo autorizado)
+Esta ação é permitida?          .agent/tools.md              (superfície de execução)
+                                .agent/rules/proposta.md      (guardrails de geração)
+                                .agent/rules/revisao.md       (guardrails de revisão)
+                                .agent/skills/*/SKILL.md      (fluxo autorizado)
 
-Qual agente fez?                output/propostas/*.md   (frontmatter: autor + status)
-                                git log                  (histórico de commits)
-                                SKILL.md versão          (versão do workflow usado)
+Qual agente fez?                output/propostas/*.md         (frontmatter: autor + status)
+                                git log                        (histórico de commits)
+                                SKILL.md versão                (versão do workflow usado)
 
-Consigo provar o que aconteceu? specs/<cliente>/         (o que foi especificado)
-                                output/propostas/*.md    (o que foi gerado)
-                                scripts/dod-check.sh     (validação reproduzível)
+Consigo provar o que aconteceu? specs/<cliente>/               (o que foi especificado)
+                                output/propostas/*.md          (o que foi gerado)
+                                scripts/dod-check.sh           (validação reproduzível)
+                                output/proposals-index.json    (trilha de estados e datas)
+
+Em que estado está a proposta?  .agent/knowledge/proposal-states.md  (máquina de estados)
+                                output/proposals-index.json           (estado atual de cada proposta)
 ```
 
 ---

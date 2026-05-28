@@ -113,13 +113,18 @@ bash scripts/dod-check.sh output/propostas/<nome-do-cliente>-proposta-v1.md
 
 ---
 
-## Passo 5 — Entregar ao Usuário
+## Passo 5 — Registrar no Índice e Entregar ao Usuário
+
+```bash
+bash scripts/register-proposal.sh output/propostas/<nome-do-cliente>-proposta-v1.md
+```
 
 Reportar ao usuário:
 1. O path do arquivo gerado.
 2. O resultado do DoD (itens validados).
 3. Se houver flags `[APROVAÇÃO NECESSÁRIA]`: listar quais são e quem precisa aprovar.
 4. Lembrar que o STATUS no header é `RASCUNHO` e requer revisão humana antes do envio.
+5. Sugerir próximo passo: `/aprovar-proposta` após revisão humana.
 
 **Mensagem padrão de encerramento:**
 

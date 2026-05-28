@@ -17,9 +17,12 @@ Princípio: o agente opera com o mínimo de superfície necessária. Cada ferram
 - **Restrição:** proibido sobrescrever arquivos que não foram criados nesta sessão sem confirmação explícita do usuário.
 
 ### Execução de scripts (`Bash`)
-- **Escopo:** exclusivamente `bash scripts/dod-check.sh <caminho-da-proposta>`
-- **Por quê:** o DoD é a única etapa de validação que requer execução de shell.
-- **Restrição:** nenhum outro comando bash é permitido. Qualquer outro uso requer aprovação.
+- **Escopo:** exclusivamente os três scripts autorizados abaixo:
+  - `bash scripts/dod-check.sh <caminho-da-proposta>` — validação estrutural
+  - `bash scripts/register-proposal.sh <caminho-da-proposta>` — registro no índice
+  - `bash scripts/update-proposal-status.sh <caminho-da-proposta> <STATUS> [motivo]` — transição de estado
+- **Por quê:** estes scripts são os únicos pontos de execução shell necessários ao workflow de proposta.
+- **Restrição:** nenhum outro comando bash é permitido. Qualquer outro uso requer aprovação explícita do usuário.
 
 ### Busca de contexto (`Grep`, `Find`)
 - **Escopo:** apenas dentro deste repositório

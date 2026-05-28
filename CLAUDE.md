@@ -24,13 +24,25 @@ Todo o conhecimento operacional deste agente vive em `.agent/`:
 |---|---|
 | `.agent/knowledge/estrutura-proposta.md` | Seções obrigatórias de toda proposta |
 | `.agent/knowledge/pricing-policy.md` | Faixas de investimento e gatilhos de aprovação |
+| `.agent/knowledge/proposal-states.md` | Ciclo de vida: estados válidos e transições |
 | `.agent/tools.md` | Ferramentas permitidas e proibidas |
-| `.agent/rules/proposta.md` | Guardrails duros (lidos antes de qualquer geração) |
-| `.agent/skills/gerar-proposta/SKILL.md` | O workflow versionado de geração |
+| `.agent/rules/proposta.md` | Guardrails duros de geração |
+| `.agent/rules/revisao.md` | Guardrails duros de revisão |
+| `.agent/skills/gerar-proposta/SKILL.md` | Workflow de geração |
+| `.agent/skills/revisar-proposta/SKILL.md` | Workflow de revisão |
+| `.agent/skills/aprovar-proposta/SKILL.md` | Workflow de aprovação humana |
+| `.agent/skills/fechar-proposta/SKILL.md` | Workflow de fechamento (GANHO/PERDIDO/etc.) |
 
 ## Skills disponíveis
 
 - `/gerar-proposta` — executa o workflow spec-driven de geração de proposta
+- `/revisar-proposta` — aplica feedbacks do cliente e gera nova versão versionada
+- `/aprovar-proposta` — guia a revisão humana e promove RASCUNHO → APROVADO
+- `/fechar-proposta` — registra o desfecho (ENVIADO / GANHO / PERDIDO / ARQUIVADO)
+
+## Ciclo de vida de uma proposta
+
+Os estados possíveis e as transições válidas estão documentados em `.agent/knowledge/proposal-states.md`. Toda proposta nasce como `RASCUNHO` e só pode ser promovida por ação humana explícita.
 
 ## Comandos proibidos neste contexto
 
