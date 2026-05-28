@@ -2,7 +2,7 @@
 
 Demonstração de **harness engineering** — como transformar um LLM em um agente confiável e governado.
 
-O caso de uso é deliberadamente simples: geração e revisão de propostas comerciais para uma consultoria fictícia (Apex Consultoria). O foco é a **estrutura**, não a complexidade do domínio.
+O caso de uso é deliberadamente simples: geração, revisão e ciclo de vida completo de propostas comerciais para uma consultoria fictícia (Apex Consultoria). O foco é a **estrutura**, não a complexidade do domínio.
 
 ---
 
@@ -26,6 +26,7 @@ modelo + harness = agente confiável
 | `CLAUDE.md` | Identidade da consultoria, tom de voz, convenções de escrita, skills disponíveis |
 | `.agent/knowledge/estrutura-proposta.md` | As 8 seções obrigatórias de toda proposta |
 | `.agent/knowledge/pricing-policy.md` | Faixas de investimento, tabela de descontos, SLAs padrão |
+| `.agent/knowledge/proposal-states.md` | Máquina de estados: ciclo de vida completo de uma proposta |
 | `.agent/policy-config.json` | **Fonte única de verdade** para constantes numéricas — lida pelo DoD via `jq` |
 
 O `policy-config.json` elimina a divergência silenciosa entre documentação e validação: qualquer mudança de política atualiza um único arquivo, e o DoD automaticamente passa a usar os novos valores.
@@ -35,31 +36,40 @@ O `policy-config.json` elimina a divergência silenciosa entre documentação e 
 
 **Arquivo:** `.agent/tools.md`
 
-Lista branca explícita: Read, Write, Edit, Bash (restrito a scripts do repo), Grep/Find no repo. Tudo o que não está na lista está proibido — incluindo Gmail, Google Drive, WebSearch.
+Lista branca explícita: Read, Write, Edit, Bash (restrito a três scripts do repo), Grep/Find no repo. Tudo o que não está na lista está proibido — incluindo Gmail, Google Drive, WebSearch.
+
+Scripts autorizados: `dod-check.sh`, `register-proposal.sh`, `update-proposal-status.sh`.
 
 ### Camada 3 — Guardrails
 > *Impede violações de negócio antes de acontecerem*
 
-**Arquivo:** `.agent/rules/proposta.md`
+**Arquivos:** `.agent/rules/proposta.md` e `.agent/rules/revisao.md`
 
-Cinco regras duras:
+`proposta.md` — cinco regras duras para geração:
 1. SLA ou desconto fora de faixa → insere flag `[APROVAÇÃO NECESSÁRIA]` e para
 2. Dados de outros clientes → bloqueado sem exceção
 3. Declarar "pronto" sem DoD aprovado → bloqueado
 4. Placeholders no documento final → bloqueado
 5. Remover header `STATUS: RASCUNHO` → somente humano pode fazer
 
-### Camada 4 — Skills (Workflows)
-> *Impede geração por prompt livre e demonstra que o padrão escala*
+`revisao.md` — cinco guardrails adicionais para revisões:
+- Nenhuma seção obrigatória pode ser removida
+- Feedback deve ser catalogado antes de qualquer edição
+- Alterações financeiras seguem as mesmas restrições da geração
+- Versão deve ser incrementada — versão anterior não pode ser sobrescrita
+- Todos os critérios GWT do `design.md` devem permanecer cobertos
 
-O harness tem duas skills versionadas com guardrails especializados:
+### Camada 4 — Skills (Workflows)
+> *Impede geração por prompt livre e cobre o ciclo de vida completo*
+
+O harness tem quatro skills versionadas, cada uma com escopo e guardrails específicos:
 
 | Skill | Trigger | Propósito |
 |---|---|---|
-| `gerar-proposta` v1.0.0 | `/gerar-proposta` | Workflow spec-driven de geração: spec → rascunho → DoD |
-| `revisar-proposta` v1.0.0 | `/revisar-proposta` | Workflow de revisão: feedback → revisão → DoD + verificação de GWTs |
-
-A skill de revisão tem guardrails adicionais: nunca remove seções obrigatórias, exige cobertura de todos os critérios Given/When/Then do `design.md`, e gera seção de histórico de revisões no documento.
+| `gerar-proposta` v1.0.0 | `/gerar-proposta` | Workflow spec-driven de geração: spec → rascunho → DoD → índice |
+| `revisar-proposta` v1.0.0 | `/revisar-proposta` | Feedback → nova versão → DoD + verificação de GWTs |
+| `aprovar-proposta` v1.0.0 | `/aprovar-proposta` | Checklist de revisão humana → RASCUNHO → APROVADO |
+| `fechar-proposta` v1.0.0 | `/fechar-proposta` | Registra desfecho: ENVIADO / GANHO / PERDIDO / ARQUIVADO |
 
 ### Camada 5 — Verificação (DoD)
 > *Impede que "pronto" seja subjetivo — e garante que o validador ele mesmo é validado*
@@ -84,40 +94,40 @@ bash tests/dod-check.test.sh
 
 ---
 
-## Spec-driven: o fluxo de trabalho
+## Ciclo de vida completo
 
-Toda proposta começa por especificação, nunca por prompt livre.
+Toda proposta começa por especificação e percorre estados explícitos até o desfecho.
 
 ```
 specs/<cliente>/
-  draft.md    ← Fase 1: brainstorm do problema (5 perguntas)
+  draft.md    ← Fase 1: briefing do problema (5 perguntas)
   design.md   ← Fase 2: contrato Given/When/Then
   tasks.md    ← Fase 3: checklist de execução
       ↓
 /gerar-proposta  (skill)
       ↓
-output/propostas/<cliente>-proposta-v1.md
+output/propostas/<cliente>-proposta-v1.md   [STATUS: RASCUNHO]
       ↓
 scripts/dod-check.sh  →  saída 0 ou 1
       ↓
 scripts/register-proposal.sh  →  output/proposals-index.json
+      ↓
+/revisar-proposta  (skill — se houver feedback)
+      ↓
+output/propostas/<cliente>-proposta-v2.md   [STATUS: RASCUNHO]
+      ↓
+/aprovar-proposta  (skill — revisão humana obrigatória)
+      ↓
+[STATUS: APROVADO]
+      ↓
+/fechar-proposta  (skill)
+      ↓
+[STATUS: ENVIADO → GANHO | PERDIDO | ARQUIVADO]
 ```
 
-Para revisões, o fluxo continua:
+A máquina de estados completa com todas as transições válidas está em `.agent/knowledge/proposal-states.md`. Nenhuma transição de estado ocorre sem ação humana explícita.
 
-```
-feedback do cliente
-      ↓
-/revisar-proposta  (skill)
-      ↓
-output/propostas/<cliente>-proposta-v2.md
-      ↓
-scripts/dod-check.sh  →  saída 0 ou 1
-      ↓
-scripts/register-proposal.sh  →  output/proposals-index.json
-```
-
-O diretório `specs/proposta-cliente-exemplo/` é a demonstração completa com um cliente fictício (Cliente Exemplo Ltda).
+O diretório `specs/_template/` contém os templates canônicos de `draft.md`, `design.md` e `tasks.md` — copiar para `specs/<novo-cliente>/` antes de iniciar uma proposta.
 
 ---
 
@@ -125,11 +135,12 @@ O diretório `specs/proposta-cliente-exemplo/` é a demonstração completa com 
 
 | Pergunta | Onde está a resposta |
 |---|---|
-| Esta ação é permitida? | `.agent/tools.md` + `.agent/rules/proposta.md` + `SKILL.md` |
+| Esta ação é permitida? | `.agent/tools.md` + `.agent/rules/proposta.md` + `.agent/rules/revisao.md` + `SKILL.md` |
 | Qual agente fez? | Frontmatter do documento (`autor:`, `skill_version:`) + `git log` |
 | Consigo provar o que aconteceu? | `specs/<cliente>/` + `output/` + `dod-check.sh` + `output/proposals-index.json` |
+| Em que estado está a proposta? | `output/proposals-index.json` + `.agent/knowledge/proposal-states.md` |
 
-O `proposals-index.json` é o registro auditável de todos os artefatos gerados — cliente, skill usada, se o DoD passou, quantas flags de aprovação existiam, e status de revisão humana.
+O `proposals-index.json` é o registro auditável de todos os artefatos gerados — cliente, skill usada, se o DoD passou, quantas flags de aprovação existiam, estado atual e histórico de transições.
 
 Detalhamento completo em `GOVERNANCE.md`.
 
@@ -146,11 +157,11 @@ bash tests/dod-check.test.sh
 # Rodar o DoD contra a proposta de exemplo
 bash scripts/dod-check.sh output/propostas/cliente-exemplo-proposta-v1.md
 
-# Consultar o índice de propostas geradas
+# Consultar o índice de propostas
 cat output/proposals-index.json | jq .
 
 # Para gerar uma nova proposta (dentro do Claude Code)
-# 1. Crie specs/<nome-do-cliente>/ com draft.md e design.md
+# 1. Copie specs/_template/ para specs/<nome-do-cliente>/
 # 2. Execute /gerar-proposta
 # 3. O agente roda o DoD e registra no índice automaticamente
 
@@ -158,6 +169,14 @@ cat output/proposals-index.json | jq .
 # 1. Forneça o feedback do cliente ao agente
 # 2. Execute /revisar-proposta
 # 3. O agente verifica cobertura de GWTs, roda o DoD e registra v2
+
+# Para aprovar uma proposta (revisão humana)
+# Execute /aprovar-proposta
+# O agente apresenta checklist, aguarda confirmação e registra APROVADO
+
+# Para registrar o desfecho
+# Execute /fechar-proposta
+# O agente captura contexto (canal, motivo, contato) e atualiza índice
 ```
 
 ---
@@ -167,29 +186,37 @@ cat output/proposals-index.json | jq .
 ```
 .agent/
   knowledge/
-    estrutura-proposta.md   ← Camada 1: 8 seções obrigatórias
-    pricing-policy.md       ← Camada 1: faixas e SLAs (narrativa)
-  policy-config.json        ← Camada 1: constantes numéricas (fonte de verdade)
+    estrutura-proposta.md      ← Camada 1: 8 seções obrigatórias
+    pricing-policy.md          ← Camada 1: faixas e SLAs (narrativa)
+    proposal-states.md         ← Camada 1: máquina de estados do ciclo de vida
+  policy-config.json           ← Camada 1: constantes numéricas (fonte de verdade)
   rules/
-    proposta.md             ← Camada 3: 5 guardrails duros
+    proposta.md                ← Camada 3: 5 guardrails de geração
+    revisao.md                 ← Camada 3: 5 guardrails de revisão
   skills/
     gerar-proposta/
-      SKILL.md              ← Camada 4: workflow de geração v1.0.0
+      SKILL.md                 ← Camada 4: workflow de geração v1.0.0
     revisar-proposta/
-      SKILL.md              ← Camada 4: workflow de revisão v1.0.0
-  tools.md                  ← Camada 2: interface curada
+      SKILL.md                 ← Camada 4: workflow de revisão v1.0.0
+    aprovar-proposta/
+      SKILL.md                 ← Camada 4: workflow de aprovação v1.0.0
+    fechar-proposta/
+      SKILL.md                 ← Camada 4: workflow de fechamento v1.0.0
+  tools.md                     ← Camada 2: interface curada (3 scripts autorizados)
 scripts/
-  dod-check.sh              ← Camada 5: DoD executável (lê policy-config.json)
-  register-proposal.sh      ← Registra artefato no índice após geração/revisão
+  dod-check.sh                 ← Camada 5: DoD executável (lê policy-config.json)
+  register-proposal.sh         ← Registra artefato no índice após geração/revisão
+  update-proposal-status.sh    ← Transições de estado no índice
 specs/
-  proposta-cliente-exemplo/ ← Spec de demonstração (draft + design + tasks)
+  _template/                   ← Templates canônicos (draft + design + tasks)
+  proposta-cliente-exemplo/    ← Spec de demonstração
 output/
-  propostas/                ← Artefatos gerados
-  proposals-index.json      ← Registro auditável de todos os artefatos
+  propostas/                   ← Artefatos gerados
+  proposals-index.json         ← Registro auditável com estado de cada proposta
 tests/
-  dod-check.test.sh         ← Suite de auto-teste do harness (7/7)
-  fixtures/                 ← Propostas de teste (válida + 5 casos de falha)
-CLAUDE.md                   ← Identidade e convenções do agente
-GOVERNANCE.md               ← Mapeamento das 3 perguntas de governança
-CHANGELOG.md                ← Histórico versionado do harness
+  dod-check.test.sh            ← Suite de auto-teste do harness (7/7)
+  fixtures/                    ← Propostas de teste (válida + 5 casos de falha)
+CLAUDE.md                      ← Identidade e convenções do agente
+GOVERNANCE.md                  ← Mapeamento das 3+1 perguntas de governança
+CHANGELOG.md                   ← Histórico versionado do harness
 ```

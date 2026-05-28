@@ -10,7 +10,25 @@ Versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/):
 
 ---
 
-## [Não lançado]
+## [1.2.0] — 2026-05-28
+
+### Adicionado
+- `.agent/rules/revisao.md` — 5 guardrails específicos do workflow de revisão (referência quebrada: `revisar-proposta/SKILL.md` já apontava para este arquivo)
+- `.agent/knowledge/proposal-states.md` — máquina de estados explícita com transições válidas, regras e onde o estado é armazenado
+- `.agent/skills/aprovar-proposta/SKILL.md` v1.0.0 — workflow com checklist de revisão humana e promoção RASCUNHO → APROVADO
+- `.agent/skills/fechar-proposta/SKILL.md` v1.0.0 — workflow de desfecho (ENVIADO / GANHO / PERDIDO / ARQUIVADO) com captura de contexto
+- `scripts/update-proposal-status.sh` — transições de estado no índice com validação de estados permitidos
+- `specs/_template/` — templates canônicos de `draft.md`, `design.md` e `tasks.md`
+
+### Alterado
+- `CLAUDE.md` — tabela de conhecimento e lista de skills atualizadas para refletir estrutura completa
+- `.agent/tools.md` — corrigida inconsistência: `register-proposal.sh` e `update-proposal-status.sh` agora listados explicitamente como Bash autorizado
+- `.agent/skills/gerar-proposta/SKILL.md` — Passo 5 agora chama `register-proposal.sh` (estava ausente; `revisar-proposta` já chamava)
+- `GOVERNANCE.md` — Resumo Visual inclui dimensão "Em que estado está a proposta?"
+
+---
+
+## [1.1.0] — 2026-05-28
 
 ### Adicionado
 - `.agent/policy-config.json` como fonte única de verdade para constantes numéricas
